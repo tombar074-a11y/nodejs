@@ -1,21 +1,26 @@
-const express = require('express');
-const path = require('path');
-const indexRouter = require('./routes/index');
-
+const express = require("express");
 const app = express();
-const PORT = 3000;
 
-// Serve static files from the "public" directory
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-// Use the router for handling routes
-app.use('/', indexRouter);
+app.get("/", (req, res) => {
+  res.send("Leadflow webhook running");
+});
 
-// Catch-all route for handling 404 errors
-app.use((req, res, next) => {
-    res.status(404).sendFile(path.join(__dirname, 'views', '404.html'));
-  });
+app.post("/whatsapp", (req, res) => {
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}/`);
+  const phone = req.body.From;
+  const message = req.body.Body;
+
+  console.log("NEW WHATSAPP MESSAGE");
+  console.log("Phone:", phone);
+  console.log("Message:", message);
+
+  res.send("ok");
+
+});
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log("Server running");
 });
