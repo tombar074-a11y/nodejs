@@ -7,9 +7,6 @@ app.use(express.json());
 // Temporary in-memory store for testing
 const leads = new Map();
 
-/**
- * Create or update a lead from an incoming WhatsApp message
- */
 function ingestWhatsAppMessage({ phone, message, timestamp }) {
   const existingLead = leads.get(phone);
 
@@ -48,24 +45,35 @@ function ingestWhatsAppMessage({ phone, message, timestamp }) {
   return { action: "updated", lead: existingLead };
 }
 
-function formatWaitingTime(isoDate) {
+function getMinutesSince(isoDate) {
   const diffMs = Date.now() - new Date(isoDate).getTime();
-  const totalMinutes = Math.floor(diffMs / 60000);
+  return Math.floor(diffMs / 60000);
+}
+
+function formatWaitingTime(isoDate) {
+  const totalMinutes = getMinutesSince(isoDate);
   const days = Math.floor(totalMinutes / (60 * 24));
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;
 
-  if (days >= 7) return `${days}d`;
   if (days >= 1) return `${days}d ${hours}h`;
   if (hours >= 1) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
+}
+
+function getAttentionLevel(isoDate) {
+  const minutes = getMinutesSince(isoDate);
+
+  if (minutes < 120) return "waiting";       // under 2h
+  if (minutes < 720) return "at_risk";       // 2h–12h
+  if (minutes < 1440) return "urgent";       // 12h–24h
+  return "lost";                             // 24h+
 }
 
 app.get("/", (req, res) => {
   res.send("Leadflow webhook running");
 });
 
-// All leads
 app.get("/debug/leads", (req, res) => {
   res.json({
     count: leads.size,
@@ -73,7 +81,6 @@ app.get("/debug/leads", (req, res) => {
   });
 });
 
-// Only leads waiting for reply
 app.get("/debug/waiting", (req, res) => {
   const waitingLeads = Array.from(leads.values())
     .filter((lead) => lead.followup_needed === true)
@@ -84,6 +91,7 @@ app.get("/debug/waiting", (req, res) => {
       last_message: lead.last_message,
       last_message_time: lead.last_message_time,
       waiting_time: formatWaitingTime(lead.last_message_time),
+      attention_level: getAttentionLevel(lead.last_message_time),
       followup_needed: lead.followup_needed,
     }))
     .sort(
@@ -95,6 +103,37 @@ app.get("/debug/waiting", (req, res) => {
   res.json({
     count: waitingLeads.length,
     leads: waitingLeads,
+  });
+});
+
+app.get("/debug/attention", (req, res) => {
+  const allWaiting = Array.from(leads.values())
+    .filter((lead) => lead.followup_needed === true)
+    .map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      source: lead.source,
+      last_message: lead.last_message,
+      last_message_time: lead.last_message_time,
+      waiting_time: formatWaitingTime(lead.last_message_time),
+      attention_level: getAttentionLevel(lead.last_message_time),
+    }));
+
+  const grouped = {
+    waiting: allWaiting.filter((lead) => lead.attention_level === "waiting"),
+    at_risk: allWaiting.filter((lead) => lead.attention_level === "at_risk"),
+    urgent: allWaiting.filter((lead) => lead.attention_level === "urgent"),
+    lost: allWaiting.filter((lead) => lead.attention_level === "lost"),
+  };
+
+  res.json({
+    counts: {
+      waiting: grouped.waiting.length,
+      at_risk: grouped.at_risk.length,
+      urgent: grouped.urgent.length,
+      lost: grouped.lost.length,
+    },
+    leads: grouped,
   });
 });
 
