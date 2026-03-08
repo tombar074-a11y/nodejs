@@ -31,7 +31,21 @@ app.use(express.json());
 // Temporary in-memory store for testing
 const leads = new Map();
 
-function ingestWhatsAppMessage({ phone, message, timestamp }) {
+async function ingestWhatsAppMessage({ phone, message, timestamp }) {
+    await pool.query(
+    `
+    INSERT INTO leads (id, name, source, last_message, last_message_time, followup_needed)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (id)
+    DO UPDATE SET
+      name = EXCLUDED.name,
+      source = EXCLUDED.source,
+      last_message = EXCLUDED.last_message,
+      last_message_time = EXCLUDED.last_message_time,
+      followup_needed = EXCLUDED.followup_needed
+    `,
+    [phone, phone, "whatsapp", message, timestamp, true]
+  );
   const existingLead = leads.get(phone);
 
   if (!existingLead) {
@@ -154,7 +168,7 @@ app.get("/alerts", (req, res) => {
   });
 });
 
-app.post("/whatsapp", (req, res) => {
+app.post("/whatsapp", async (req, res) => {
   try {
     const phone = req.body.From;
     const message = req.body.Body;
@@ -164,7 +178,7 @@ app.post("/whatsapp", (req, res) => {
       return res.status(400).json({ error: "Missing phone or message" });
     }
 
-    const result = ingestWhatsAppMessage({
+ const result = await ingestWhatsAppMessage({
       phone,
       message,
       timestamp,
