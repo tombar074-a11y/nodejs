@@ -255,6 +255,23 @@ app.post("/resolve", async (req, res) => {
     res.status(500).json({ error: "Failed to resolve lead" });
   }
 });
+app.get("/resolve-test", async (req, res) => {
+  try {
+    const id = req.query.id;
+
+    await pool.query(
+      `UPDATE leads
+       SET followup_needed = false
+       WHERE id = $1`,
+      [id]
+    );
+
+    res.send(`Resolved ${id}`);
+  } catch (error) {
+    console.error("Resolve test error:", error);
+    res.status(500).send("Resolve test failed");
+  }
+});
 app.post("/whatsapp", async (req, res) => {
   try {
     const phone = req.body.From;
