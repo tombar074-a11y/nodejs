@@ -197,6 +197,47 @@ app.get("/alerts", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch alerts from database" });
   }
 });
+app.get("/attention", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, source, last_message, last_message_time, followup_needed
+      FROM leads
+      WHERE followup_needed = true
+      ORDER BY last_message_time ASC
+    `);
+
+    const now = Date.now();
+
+    const leads = result.rows.map((lead) => {
+      const minutes = Math.floor(
+        (now - new Date(lead.last_message_time).getTime()) / 60000
+      );
+
+      let attention_level = "waiting";
+      if (minutes >= 1440) attention_level = "lost";
+      else if (minutes >= 720) attention_level = "urgent";
+      else if (minutes >= 120) attention_level = "at_risk";
+
+      return {
+        id: lead.id,
+        name: lead.name,
+        source: lead.source,
+        last_message: lead.last_message,
+        last_message_time: lead.last_message_time,
+        waiting_minutes: minutes,
+        attention_level,
+      };
+    });
+
+    res.json({
+      count: leads.length,
+      leads,
+    });
+  } catch (error) {
+    console.error("Attention error:", error);
+    res.status(500).json({ error: "Failed to fetch attention leads" });
+  }
+});
 app.post("/whatsapp", async (req, res) => {
   try {
     const phone = req.body.From;
