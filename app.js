@@ -48,15 +48,53 @@ function ingestWhatsAppMessage({ phone, message, timestamp }) {
   return { action: "updated", lead: existingLead };
 }
 
+function formatWaitingTime(isoDate) {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days >= 7) return `${days}d`;
+  if (days >= 1) return `${days}d ${hours}h`;
+  if (hours >= 1) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 app.get("/", (req, res) => {
   res.send("Leadflow webhook running");
 });
 
-// Debug route so you can see what was received
+// All leads
 app.get("/debug/leads", (req, res) => {
   res.json({
     count: leads.size,
     leads: Array.from(leads.values()),
+  });
+});
+
+// Only leads waiting for reply
+app.get("/debug/waiting", (req, res) => {
+  const waitingLeads = Array.from(leads.values())
+    .filter((lead) => lead.followup_needed === true)
+    .map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      source: lead.source,
+      last_message: lead.last_message,
+      last_message_time: lead.last_message_time,
+      waiting_time: formatWaitingTime(lead.last_message_time),
+      followup_needed: lead.followup_needed,
+    }))
+    .sort(
+      (a, b) =>
+        new Date(a.last_message_time).getTime() -
+        new Date(b.last_message_time).getTime()
+    );
+
+  res.json({
+    count: waitingLeads.length,
+    leads: waitingLeads,
   });
 });
 
