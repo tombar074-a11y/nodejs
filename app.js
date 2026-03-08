@@ -154,30 +154,49 @@ app.get("/debug/waiting", (req, res) => {
   });
 });
 
-app.get("/alerts", (req, res) => {
+app.get("/alerts", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, source, last_message, last_message_time, followup_needed
+      FROM leads
+      WHERE followup_needed = true
+      ORDER BY last_message_time DESC
+    `);
 
-  const allWaiting = Array.from(leads.values())
-    .filter((lead) => lead.followup_needed === true)
-    .map((lead) => ({
-      id: lead.id,
-      name: lead.name,
-      last_message: lead.last_message,
-      waiting_time: formatWaitingTime(lead.last_message_time),
-      level: getAttentionLevel(lead.last_message_time)
-    }));
+    const now = Date.now();
 
-  const alerts = {
-    at_risk: allWaiting.filter(l => l.level === "at_risk"),
-    urgent: allWaiting.filter(l => l.level === "urgent"),
-    lost: allWaiting.filter(l => l.level === "lost")
-  };
+    const leads = result.rows.map((lead) => {
+      const minutes =
+        Math.floor((now - new Date(lead.last_message_time).getTime()) / 60000);
 
-  res.json({
-    alerts_count: alerts.at_risk.length + alerts.urgent.length + alerts.lost.length,
-    alerts
-  });
+      let level = "waiting";
+      if (minutes >= 1440) level = "lost";
+      else if (minutes >= 720) level = "urgent";
+      else if (minutes >= 120) level = "at_risk";
+
+      return {
+        ...lead,
+        waiting_minutes: minutes,
+        level,
+      };
+    });
+
+    const alerts = {
+      at_risk: leads.filter((l) => l.level === "at_risk"),
+      urgent: leads.filter((l) => l.level === "urgent"),
+      lost: leads.filter((l) => l.level === "lost"),
+    };
+
+    res.json({
+      alerts_count:
+        alerts.at_risk.length + alerts.urgent.length + alerts.lost.length,
+      alerts,
+    });
+  } catch (error) {
+    console.error("Alerts error:", error);
+    res.status(500).json({ error: "Failed to fetch alerts from database" });
+  }
 });
-
 app.post("/whatsapp", async (req, res) => {
   try {
     const phone = req.body.From;
