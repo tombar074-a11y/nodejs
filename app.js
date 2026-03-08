@@ -238,6 +238,23 @@ app.get("/attention", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch attention leads" });
   }
 });
+app.post("/resolve", async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    await pool.query(
+      `UPDATE leads
+       SET followup_needed = false
+       WHERE id = $1`,
+      [id]
+    );
+
+    res.json({ status: "resolved", id });
+  } catch (error) {
+    console.error("Resolve error:", error);
+    res.status(500).json({ error: "Failed to resolve lead" });
+  }
+});
 app.post("/whatsapp", async (req, res) => {
   try {
     const phone = req.body.From;
