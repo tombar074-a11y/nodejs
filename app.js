@@ -9,6 +9,22 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 });
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS leads (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      source TEXT,
+      last_message TEXT,
+      last_message_time TIMESTAMP,
+      followup_needed BOOLEAN
+    );
+  `);
+
+  console.log("Database ready");
+}
+
+initDB();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
