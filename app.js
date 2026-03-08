@@ -106,34 +106,27 @@ app.get("/debug/waiting", (req, res) => {
   });
 });
 
-app.get("/debug/attention", (req, res) => {
+app.get("/alerts", (req, res) => {
+
   const allWaiting = Array.from(leads.values())
     .filter((lead) => lead.followup_needed === true)
     .map((lead) => ({
       id: lead.id,
       name: lead.name,
-      source: lead.source,
       last_message: lead.last_message,
-      last_message_time: lead.last_message_time,
       waiting_time: formatWaitingTime(lead.last_message_time),
-      attention_level: getAttentionLevel(lead.last_message_time),
+      level: getAttentionLevel(lead.last_message_time)
     }));
 
-  const grouped = {
-    waiting: allWaiting.filter((lead) => lead.attention_level === "waiting"),
-    at_risk: allWaiting.filter((lead) => lead.attention_level === "at_risk"),
-    urgent: allWaiting.filter((lead) => lead.attention_level === "urgent"),
-    lost: allWaiting.filter((lead) => lead.attention_level === "lost"),
+  const alerts = {
+    at_risk: allWaiting.filter(l => l.level === "at_risk"),
+    urgent: allWaiting.filter(l => l.level === "urgent"),
+    lost: allWaiting.filter(l => l.level === "lost")
   };
 
   res.json({
-    counts: {
-      waiting: grouped.waiting.length,
-      at_risk: grouped.at_risk.length,
-      urgent: grouped.urgent.length,
-      lost: grouped.lost.length,
-    },
-    leads: grouped,
+    alerts_count: alerts.at_risk.length + alerts.urgent.length + alerts.lost.length,
+    alerts
   });
 });
 
