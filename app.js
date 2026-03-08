@@ -112,13 +112,23 @@ app.get("/", (req, res) => {
   res.send("Leadflow webhook running");
 });
 
-app.get("/debug/leads", (req, res) => {
-  res.json({
-    count: leads.size,
-    leads: Array.from(leads.values()),
-  });
-});
+app.get("/debug/leads", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, source, last_message, last_message_time, followup_needed
+      FROM leads
+      ORDER BY last_message_time DESC
+    `);
 
+    res.json({
+      count: result.rows.length,
+      leads: result.rows,
+    });
+  } catch (error) {
+    console.error("Debug leads error:", error);
+    res.status(500).json({ error: "Failed to fetch leads from database" });
+  }
+});
 app.get("/debug/waiting", (req, res) => {
   const waitingLeads = Array.from(leads.values())
     .filter((lead) => lead.followup_needed === true)
