@@ -238,6 +238,26 @@ app.get("/attention", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch attention leads" });
   }
 });
+app.get("/ghosted", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, last_message, last_message_time
+      FROM leads
+      WHERE followup_needed = true
+      AND last_message_time < NOW() - INTERVAL '12 hours'
+      ORDER BY last_message_time ASC
+    `);
+
+    res.json({
+      count: result.rows.length,
+      ghosted_leads: result.rows
+    });
+
+  } catch (error) {
+    console.error("Ghosted leads error:", error);
+    res.status(500).json({ error: "Failed to fetch ghosted leads" });
+  }
+});
 app.post("/resolve", async (req, res) => {
   try {
     const { id } = req.body;
