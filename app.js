@@ -329,6 +329,90 @@ app.get("/prioritized-ghosted", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch prioritized ghosted leads" });
   }
 });
+app.get("/dashboard-data", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, source, last_message, last_message_time, followup_needed
+      FROM leads
+      ORDER BY last_message_time DESC
+    `);
+
+    const now = Date.now();
+
+    const allLeads = result.rows.map((lead) => {
+      const minutes = Math.floor(
+        (now - new Date(lead.last_message_time).getTime()) / 60000
+      );
+
+      let attention_level = "waiting";
+      if (minutes >= 1440) attention_level = "lost";
+      else if (minutes >= 720) attention_level = "urgent";
+      else if (minutes >= 120) attention_level = "at_risk";
+
+      const msg = (lead.last_message || "").toLowerCase();
+      let priority = "medium";
+
+      const highKeywords = [
+        "price", "pricing", "how much", "membership", "trial", "start", "join",
+        "schedule", "available", "כמה עולה", "מחיר", "עלות", "מנוי",
+        "ניסיון", "להתחיל", "להצטרף", "זמין", "שעות"
+      ];
+
+      const lowKeywords = [
+        "thanks", "thank you", "ok", "okay", "maybe", "later",
+        "סבבה", "תודה", "אוקיי", "אולי", "אחר כך"
+      ];
+
+      if (highKeywords.some((keyword) => msg.includes(keyword))) {
+        priority = "high";
+      } else if (lowKeywords.some((keyword) => msg.includes(keyword))) {
+        priority = "low";
+      }
+
+      return {
+        ...lead,
+        waiting_minutes: minutes,
+        attention_level,
+        priority
+      };
+    });
+
+    const attention = allLeads.filter((lead) => lead.followup_needed === true);
+
+    const ghosted = attention.filter((lead) => lead.waiting_minutes >= 720);
+
+    const prioritizedGhosted = {
+      high: ghosted.filter((lead) => lead.priority === "high"),
+      medium: ghosted.filter((lead) => lead.priority === "medium"),
+      low: ghosted.filter((lead) => lead.priority === "low"),
+    };
+
+    const alerts = {
+      at_risk: attention.filter((lead) => lead.attention_level === "at_risk"),
+      urgent: attention.filter((lead) => lead.attention_level === "urgent"),
+      lost: attention.filter((lead) => lead.attention_level === "lost"),
+    };
+
+    res.json({
+      counts: {
+        total_leads: allLeads.length,
+        needs_reply: attention.length,
+        at_risk: alerts.at_risk.length,
+        urgent: alerts.urgent.length,
+        lost: alerts.lost.length,
+        ghosted_high: prioritizedGhosted.high.length,
+        ghosted_medium: prioritizedGhosted.medium.length,
+        ghosted_low: prioritizedGhosted.low.length
+      },
+      attention,
+      alerts,
+      prioritized_ghosted: prioritizedGhosted
+    });
+  } catch (error) {
+    console.error("Dashboard data error:", error);
+    res.status(500).json({ error: "Failed to fetch dashboard data" });
+  }
+});
 app.post("/resolve", async (req, res) => {
   try {
     const { id } = req.body;
