@@ -504,6 +504,73 @@ app.get("/push-candidates", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch push candidates" });
   }
 });
+app.get("/push-dispatch", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, last_message, last_message_time, followup_needed, alert_sent
+      FROM leads
+      ORDER BY last_message_time DESC
+    `);
+
+    const now = Date.now();
+
+    const highKeywords = [
+      "price","pricing","how much","membership","trial","start","join","schedule",
+      "available","כמה עולה","מחיר","עלות","מנוי","ניסיון","להתחיל","להצטרף"
+    ];
+
+    const leads = result.rows.map((lead) => {
+
+      const msg = (lead.last_message || "").toLowerCase();
+
+      const waiting_minutes = Math.floor(
+        (now - new Date(lead.last_message_time).getTime()) / 60000
+      );
+
+      const is_hot = highKeywords.some((k) => msg.includes(k));
+
+      const is_ignored =
+        lead.followup_needed === true &&
+        waiting_minutes >= 720;
+
+      return {
+        ...lead,
+        waiting_minutes,
+        is_hot,
+        is_ignored
+      };
+
+    });
+
+    const alerts = leads.filter(
+      (lead) =>
+        lead.alert_sent === false &&
+        (lead.is_hot || lead.is_ignored)
+    );
+
+    for (const lead of alerts) {
+
+      await pool.query(
+        `UPDATE leads SET alert_sent = true WHERE id = $1`,
+        [lead.id]
+      );
+
+    }
+
+    res.json({
+      alerts
+    });
+
+  } catch (error) {
+
+    console.error("Push dispatch error:", error);
+
+    res.status(500).json({
+      error: "Failed to dispatch alerts"
+    });
+
+  }
+});
 app.post("/resolve", async (req, res) => {
   try {
     const { id } = req.body;
