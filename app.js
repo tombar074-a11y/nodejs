@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const app = express();
 
 const { Pool } = require("pg");
@@ -27,7 +28,7 @@ async function initDB() {
 initDB();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
+app.use(cors());
 // Temporary in-memory store for testing
 const leads = new Map();
 
