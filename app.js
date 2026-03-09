@@ -504,43 +504,6 @@ app.get("/push-candidates", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch push candidates" });
   }
 });
-app.get("/push-dispatch", async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT id, name, last_message, last_message_time, followup_needed, alert_sent
-      FROM leads
-      ORDER BY last_message_time DESC
-    `);
-
-    const now = Date.now();
-
-    const highKeywords = [
-      "price","pricing","how much","membership","trial","start","join","schedule",
-      "available","כמה עולה","מחיר","עלות","מנוי","ניסיון","להתחיל","להצטרף"
-    ];
-
-    const leads = result.rows.map((lead) => {
-
-      const msg = (lead.last_message || "").toLowerCase();
-
-      const waiting_minutes = Math.floor(
-        (now - new Date(lead.last_message_time).getTime()) / 60000
-      );
-
-      const is_hot = highKeywords.some((k) => msg.includes(k));
-
-      const is_ignored =
-        lead.followup_needed === true &&
-        waiting_minutes >= 720;
-
-      return {
-        ...lead,
-        waiting_minutes,
-        is_hot,
-        is_ignored
-      };
-
-    });
 app.get("/daily-brief", async (req, res) => {
   try {
 
@@ -592,6 +555,43 @@ app.get("/daily-brief", async (req, res) => {
       ignored_leads,
       followups,
       potential_sales_conversations
+    });
+app.get("/push-dispatch", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, last_message, last_message_time, followup_needed, alert_sent
+      FROM leads
+      ORDER BY last_message_time DESC
+    `);
+
+    const now = Date.now();
+
+    const highKeywords = [
+      "price","pricing","how much","membership","trial","start","join","schedule",
+      "available","כמה עולה","מחיר","עלות","מנוי","ניסיון","להתחיל","להצטרף"
+    ];
+
+    const leads = result.rows.map((lead) => {
+
+      const msg = (lead.last_message || "").toLowerCase();
+
+      const waiting_minutes = Math.floor(
+        (now - new Date(lead.last_message_time).getTime()) / 60000
+      );
+
+      const is_hot = highKeywords.some((k) => msg.includes(k));
+
+      const is_ignored =
+        lead.followup_needed === true &&
+        waiting_minutes >= 720;
+
+      return {
+        ...lead,
+        waiting_minutes,
+        is_hot,
+        is_ignored
+      };
+
     });
 
   } catch (error) {
