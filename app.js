@@ -9,7 +9,7 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   }
-});
+}); 
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS leads (
