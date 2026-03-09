@@ -541,7 +541,69 @@ app.get("/push-dispatch", async (req, res) => {
       };
 
     });
+app.get("/daily-brief", async (req, res) => {
+  try {
 
+    const result = await pool.query(`
+      SELECT id, last_message, last_message_time, followup_needed
+      FROM leads
+    `);
+
+    const now = Date.now();
+
+    const highKeywords = [
+      "price","pricing","how much","membership","trial","start","join","schedule",
+      "available","כמה עולה","מחיר","עלות","מנוי","ניסיון","להתחיל","להצטרף"
+    ];
+
+    let hot_leads = 0;
+    let ignored_leads = 0;
+    let followups = 0;
+
+    for (const lead of result.rows) {
+
+      const msg = (lead.last_message || "").toLowerCase();
+
+      const waiting_minutes = Math.floor(
+        (now - new Date(lead.last_message_time).getTime()) / 60000
+      );
+
+      const is_hot = highKeywords.some(k => msg.includes(k));
+
+      const is_ignored =
+        lead.followup_needed === true &&
+        waiting_minutes >= 720;
+
+      const is_followup =
+        lead.followup_needed === true &&
+        waiting_minutes >= 1440;
+
+      if (is_hot) hot_leads++;
+      if (is_ignored) ignored_leads++;
+      if (is_followup) followups++;
+
+    }
+
+    const potential_sales_conversations =
+      hot_leads + ignored_leads + followups;
+
+    res.json({
+      hot_leads,
+      ignored_leads,
+      followups,
+      potential_sales_conversations
+    });
+
+  } catch (error) {
+
+    console.error("Daily brief error:", error);
+
+    res.status(500).json({
+      error: "Failed to generate daily brief"
+    });
+
+  }
+});
     const alerts = leads.filter(
       (lead) =>
         lead.alert_sent === false &&
