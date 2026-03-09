@@ -258,6 +258,77 @@ app.get("/ghosted", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch ghosted leads" });
   }
 });
+app.get("/prioritized-ghosted", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, source, last_message, last_message_time
+      FROM leads
+      WHERE followup_needed = true
+      AND last_message_time < NOW() - INTERVAL '12 hours'
+      ORDER BY last_message_time ASC
+    `);
+
+    const leads = result.rows.map((lead) => {
+      const msg = (lead.last_message || "").toLowerCase();
+
+      let priority = "medium";
+
+      const highKeywords = [
+        "price",
+        "pricing",
+        "how much",
+        "membership",
+        "trial",
+        "start",
+        "join",
+        "schedule",
+        "available",
+        "כמה עולה",
+        "מחיר",
+        "עלות",
+        "מנוי",
+        "ניסיון",
+        "להתחיל",
+        "להצטרף",
+        "זמין",
+        "שעות"
+      ];
+
+      const lowKeywords = [
+        "thanks",
+        "thank you",
+        "ok",
+        "okay",
+        "maybe",
+        "later",
+        "סבבה",
+        "תודה",
+        "אוקיי",
+        "אולי",
+        "אחר כך"
+      ];
+
+      if (highKeywords.some((keyword) => msg.includes(keyword))) {
+        priority = "high";
+      } else if (lowKeywords.some((keyword) => msg.includes(keyword))) {
+        priority = "low";
+      }
+
+      return {
+        ...lead,
+        priority
+      };
+    });
+
+    res.json({
+      count: leads.length,
+      ghosted_leads: leads
+    });
+  } catch (error) {
+    console.error("Prioritized ghosted error:", error);
+    res.status(500).json({ error: "Failed to fetch prioritized ghosted leads" });
+  }
+});
 app.post("/resolve", async (req, res) => {
   try {
     const { id } = req.body;
