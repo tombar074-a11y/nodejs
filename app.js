@@ -607,7 +607,7 @@ app.get("/daily-brief", async (req, res) => {
     const alerts = leads.filter(
       (lead) =>
         lead.alert_sent === false &&
-        (lead.is_hot || lead.is_ignored)
+        (lead.is_hot || lead.is_ignored) 
     );
 
     for (const lead of alerts) {
