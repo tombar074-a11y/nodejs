@@ -415,6 +415,92 @@ app.get("/dashboard-data", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch dashboard data" });
   }
 });
+app.get("/push-candidates", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, source, last_message, last_message_time, followup_needed
+      FROM leads
+      ORDER BY last_message_time DESC
+    `);
+
+    const now = Date.now();
+
+    const highKeywords = [
+      "price",
+      "pricing",
+      "how much",
+      "membership",
+      "trial",
+      "start",
+      "join",
+      "schedule",
+      "available",
+      "כמה עולה",
+      "מחיר",
+      "עלות",
+      "מנוי",
+      "ניסיון",
+      "להתחיל",
+      "להצטרף",
+      "זמין",
+      "שעות"
+    ];
+
+    const leads = result.rows.map((lead) => {
+      const msg = (lead.last_message || "").toLowerCase();
+      const waiting_minutes = Math.floor(
+        (now - new Date(lead.last_message_time).getTime()) / 60000
+      );
+
+      const is_hot = highKeywords.some((keyword) => msg.includes(keyword));
+      const is_ignored =
+        (lead.followup_needed === true || lead.followup_needed === "true") &&
+        waiting_minutes >= 720;
+
+      return {
+        ...lead,
+        waiting_minutes,
+        is_hot,
+        is_ignored
+      };
+    });
+
+    const hot_leads = leads
+      .filter((lead) => lead.is_hot)
+      .map((lead) => ({
+        id: lead.id,
+        name: lead.name,
+        last_message: lead.last_message,
+        reason: "High intent detected from message content",
+        priority: "high"
+      }));
+
+    const ignored_leads = leads
+      .filter((lead) => lead.is_ignored)
+      .map((lead) => ({
+        id: lead.id,
+        name: lead.name,
+        last_message: lead.last_message,
+        waiting_minutes: lead.waiting_minutes
+      }));
+
+    const followup_opportunities = [];
+
+    res.json({
+      counts: {
+        hot_leads: hot_leads.length,
+        ignored_leads: ignored_leads.length,
+        followup_opportunities: followup_opportunities.length
+      },
+      hot_leads,
+      ignored_leads,
+      followup_opportunities
+    });
+  } catch (error) {
+    console.error("Push candidates error:", error);
+    res.status(500).json({ error: "Failed to fetch push candidates" });
+  }
+});
 app.post("/resolve", async (req, res) => {
   try {
     const { id } = req.body;
