@@ -377,8 +377,9 @@ app.get("/dashboard-data", async (req, res) => {
       };
     });
 
-    const attention = allLeads.filter((lead) => lead.followup_needed === true);
-
+    const attention = allLeads.filter(
+  (lead) => lead.followup_needed === true || lead.followup_needed === "true"
+);
     const ghosted = attention.filter((lead) => lead.waiting_minutes >= 720);
 
     const prioritizedGhosted = {
