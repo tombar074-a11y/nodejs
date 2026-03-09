@@ -21,7 +21,10 @@ async function initDB() {
       followup_needed BOOLEAN
     );
   `);
-
+await pool.query(`
+  ALTER TABLE leads
+  ADD COLUMN IF NOT EXISTS alert_sent BOOLEAN DEFAULT FALSE
+`);
   console.log("Database ready");
 }
 
