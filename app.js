@@ -619,18 +619,17 @@ app.get("/push-dispatch", async (req, res) => {
 
     }
 
-    res.json({
-      alerts
-    });
+   return res.json({
+  alerts
+});
 
   } catch (error) {
 
     console.error("Push dispatch error:", error);
 
-    res.status(500).json({
-      error: "Failed to dispatch alerts"
-    });
-
+    return res.status(500).json({
+  error: "Failed to dispatch alerts"
+});
   }
 });
 app.post("/resolve", async (req, res) => {
@@ -644,10 +643,10 @@ app.post("/resolve", async (req, res) => {
       [id]
     );
 
-    res.json({ status: "resolved", id });
+    return res.json({ status: "resolved", id });
   } catch (error) {
     console.error("Resolve error:", error);
-    res.status(500).json({ error: "Failed to resolve lead" });
+    return res.status(500).json({ error: "Failed to resolve lead" });
   }
 });
 app.get("/resolve-test", async (req, res) => {
