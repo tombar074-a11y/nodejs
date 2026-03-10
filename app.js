@@ -558,6 +558,7 @@ app.get("/daily-brief", async (req, res) => {
     });
 app.get("/push-dispatch", async (req, res) => {
   try {
+
     const result = await pool.query(`
       SELECT id, name, last_message, last_message_time, followup_needed, alert_sent
       FROM leads
@@ -571,45 +572,37 @@ app.get("/push-dispatch", async (req, res) => {
       "available","כמה עולה","מחיר","עלות","מנוי","ניסיון","להתחיל","להצטרף"
     ];
 
-const leads = Array.isArray(result.rows)
-  ? result.rows.map((lead) => {
-      const msg = (lead.last_message || "").toLowerCase();
+    const leads = Array.isArray(result.rows)
+      ? result.rows.map((lead) => {
 
-      const waiting_minutes = Math.floor(
-        (now - new Date(lead.last_message_time).getTime()) / 60000
-      );
+          const msg = (lead.last_message || "").toLowerCase();
 
-      const is_hot = highKeywords.some((k) => msg.includes(k));
+          const waiting_minutes = Math.floor(
+            (now - new Date(lead.last_message_time).getTime()) / 60000
+          );
 
-      const is_ignored =
-        lead.followup_needed === true &&
-        waiting_minutes >= 720;
+          const is_hot = highKeywords.some((k) => msg.includes(k));
 
-      return {
-        ...lead,
-        waiting_minutes,
-        is_hot,
-        is_ignored
-      };
-    })
-  : [];
+          const is_ignored =
+            lead.followup_needed === true &&
+            waiting_minutes >= 720;
 
-  } catch (error) {
+          return {
+            ...lead,
+            waiting_minutes,
+            is_hot,
+            is_ignored
+          };
 
-    console.error("Daily brief error:", error);
+        })
+      : [];
 
-    res.status(500).json({
-      error: "Failed to generate daily brief"
-    });
-
-  }
-});
     const alerts = leads.filter(
       (lead) =>
         lead.alert_sent === false &&
-        (lead.is_hot || lead.is_ignored) 
+        (lead.is_hot || lead.is_ignored)
     );
- 
+
     for (const lead of alerts) {
 
       await pool.query(
@@ -619,17 +612,18 @@ const leads = Array.isArray(result.rows)
 
     }
 
-   return res.json({
-  alerts
-});
+    return res.json({
+      alerts
+    });
 
   } catch (error) {
 
     console.error("Push dispatch error:", error);
 
     return res.status(500).json({
-  error: "Failed to dispatch alerts"
-});
+      error: "Failed to dispatch alerts"
+    });
+
   }
 });
 app.post("/resolve", async (req, res) => {
