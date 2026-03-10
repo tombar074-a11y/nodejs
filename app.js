@@ -571,8 +571,8 @@ app.get("/push-dispatch", async (req, res) => {
       "available","כמה עולה","מחיר","עלות","מנוי","ניסיון","להתחיל","להצטרף"
     ];
 
-    const leads = result.rows.map((lead) => {
-
+const leads = Array.isArray(result.rows)
+  ? result.rows.map((lead) => {
       const msg = (lead.last_message || "").toLowerCase();
 
       const waiting_minutes = Math.floor(
@@ -591,8 +591,8 @@ app.get("/push-dispatch", async (req, res) => {
         is_hot,
         is_ignored
       };
-
-    });
+    })
+  : [];
 
   } catch (error) {
 
