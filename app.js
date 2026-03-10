@@ -609,7 +609,7 @@ const leads = Array.isArray(result.rows)
         lead.alert_sent === false &&
         (lead.is_hot || lead.is_ignored) 
     );
-
+ 
     for (const lead of alerts) {
 
       await pool.query(
