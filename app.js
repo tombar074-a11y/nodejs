@@ -556,6 +556,13 @@ app.get("/daily-brief", async (req, res) => {
       followups,
       potential_sales_conversations
     });
+      } catch (error) {
+    console.error("Daily brief error:", error);
+    res.status(500).json({
+      error: "Failed to generate daily brief"
+    });
+  }
+});
 app.get("/push-dispatch", async (req, res) => {
   try {
 
