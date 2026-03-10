@@ -612,15 +612,13 @@ app.get("/push-dispatch", async (req, res) => {
 
     }
 
-    return res.json({
-      alerts
-    });
+    res.json({ alerts });
 
   } catch (error) {
 
     console.error("Push dispatch error:", error);
 
-    return res.status(500).json({
+    res.status(500).json({
       error: "Failed to dispatch alerts"
     });
 
