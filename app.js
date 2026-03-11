@@ -25,6 +25,15 @@ await pool.query(`
   ALTER TABLE leads
   ADD COLUMN IF NOT EXISTS alert_sent BOOLEAN DEFAULT FALSE
 `);
+  await pool.query(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    lead_id TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    message_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  )
+`);
   console.log("Database ready");
 }
 
@@ -50,6 +59,11 @@ async function ingestWhatsAppMessage({ phone, message, timestamp }) {
     `,
     [phone, phone, "whatsapp", message, timestamp, true]
   );
+  await pool.query(
+  `INSERT INTO messages (lead_id, direction, message_text, created_at)
+   VALUES ($1, $2, $3, $4)`,
+  [phone, "inbound", message, timestamp]
+);
   const existingLead = leads.get(phone);
 
   if (!existingLead) {
