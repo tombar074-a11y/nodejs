@@ -956,3 +956,43 @@ app.post("/suggest-reply", async (req, res) => {
     res.status(500).json({ error: "Failed to generate reply suggestion" });
   }
 });
+app.get("/daily-brief", async (req, res) => {
+  try {
+
+    const result = await pool.query(`
+      SELECT message_type, reply_effort
+      FROM messages
+      WHERE created_at > NOW() - INTERVAL '24 hours'
+    `);
+
+    let hot_leads = 0;
+    let needs_attention = 0;
+    let quick_replies = 0;
+
+    result.rows.forEach(msg => {
+
+      if (msg.message_type === "lead") {
+        hot_leads++;
+      }
+
+      else if (msg.reply_effort === "short") {
+        needs_attention++;
+      }
+
+      else if (msg.message_type === "closing") {
+        quick_replies++;
+      }
+
+    });
+
+    res.json({
+      hot_leads,
+      needs_attention,
+      quick_replies
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to build daily brief" });
+  }
+});
