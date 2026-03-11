@@ -56,10 +56,11 @@ function classifyMessage(message, waiting_minutes = 0) {
   const msg = (message || "").toLowerCase().trim();
 
   const leadKeywords = [
-    "price", "pricing", "how much", "membership", "trial", "start", "join",
-    "available", "schedule",
-    "כמה עולה", "מחיר", "עלות", "מנוי", "ניסיון", "להתחיל", "להצטרף", "פרטים", "זמין"
-  ];
+  "price", "pricing", "how much", "membership", "trial", "start", "join",
+  "available", "schedule",
+  "כמה", "כמה זה", "כמה עולה", "מחיר", "עלות", "מנוי", "ניסיון",
+  "להתחיל", "להצטרף", "פרטים", "זמין"
+];
 
   const closingKeywords = [
     "thanks", "thank you", "perfect", "great", "awesome", "amazing",
