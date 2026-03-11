@@ -34,6 +34,15 @@ await pool.query(`
     created_at TIMESTAMP DEFAULT NOW()
   )
 `);
+  await pool.query(`
+  ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS message_type TEXT
+`);
+
+await pool.query(`
+  ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS reply_effort TEXT
+`);
   console.log("Database ready");
 }
 
@@ -43,9 +52,60 @@ app.use(express.json());
 app.use(cors());
 // Temporary in-memory store for testing
 const leads = new Map();
+function classifyMessage(message, waiting_minutes = 0) {
+  const msg = (message || "").toLowerCase().trim();
 
+  const leadKeywords = [
+    "price", "pricing", "how much", "membership", "trial", "start", "join",
+    "available", "schedule",
+    "כמה עולה", "מחיר", "עלות", "מנוי", "ניסיון", "להתחיל", "להצטרף", "פרטים", "זמין"
+  ];
+
+  const closingKeywords = [
+    "thanks", "thank you", "perfect", "great", "awesome", "amazing",
+    "תודה", "תודה רבה", "מושלם", "מעולה", "אלוף", "מלך", "🙏", "👍", "❤️", "❤"
+  ];
+
+  const shortReplyKeywords = [
+    "מתי", "איפה", "אפשר", "שלחת?", "קיבלת?", "מחר", "היום",
+    "when", "where", "can you", "did you send", "got it"
+  ];
+
+  if (closingKeywords.some((k) => msg.includes(k))) {
+    return {
+      message_type: "closing",
+      reply_effort: "quick"
+    };
+  }
+
+  if (leadKeywords.some((k) => msg.includes(k))) {
+    return {
+      message_type: "lead",
+      reply_effort: "full"
+    };
+  }
+
+  if (shortReplyKeywords.some((k) => msg.includes(k))) {
+    return {
+      message_type: "existing_customer",
+      reply_effort: "short"
+    };
+  }
+
+  if (waiting_minutes >= 60) {
+    return {
+      message_type: "existing_customer",
+      reply_effort: "full"
+    };
+  }
+
+  return {
+    message_type: "existing_customer",
+    reply_effort: "short"
+  };
+}
 async function ingestWhatsAppMessage({ phone, message, timestamp }) {
-    await pool.query(
+  await pool.query(
     `
     INSERT INTO leads (id, name, source, last_message, last_message_time, followup_needed)
     VALUES ($1, $2, $3, $4, $5, $6)
@@ -59,12 +119,24 @@ async function ingestWhatsAppMessage({ phone, message, timestamp }) {
     `,
     [phone, phone, "whatsapp", message, timestamp, true]
   );
+
+  const classification = classifyMessage(message, 0);
+
   await pool.query(
-  `INSERT INTO messages (lead_id, direction, message_text, created_at)
-   VALUES ($1, $2, $3, $4)`,
-  [phone, "inbound", message, timestamp]
-);
+    `INSERT INTO messages (lead_id, direction, message_text, created_at, message_type, reply_effort)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      phone,
+      "inbound",
+      message,
+      timestamp,
+      classification.message_type,
+      classification.reply_effort
+    ]
+  );
+
   const existingLead = leads.get(phone);
+
 
   if (!existingLead) {
     leads.set(phone, {
@@ -729,7 +801,7 @@ app.get("/push-dispatch", async (req, res) => {
 app.get("/debug/messages", async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, lead_id, direction, message_text, created_at
+      SELECT id, lead_id, direction, message_text, message_type, reply_effort, created_at
       FROM messages
       ORDER BY created_at DESC
       LIMIT 20
