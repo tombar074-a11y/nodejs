@@ -726,6 +726,24 @@ app.get("/push-dispatch", async (req, res) => {
 
   }
 });
+app.get("/debug/messages", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, lead_id, direction, message_text, created_at
+      FROM messages
+      ORDER BY created_at DESC
+      LIMIT 20
+    `);
+
+    return res.json({
+      count: result.rows.length,
+      messages: result.rows
+    });
+  } catch (error) {
+    console.error("Debug messages error:", error);
+    return res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
 app.post("/resolve", async (req, res) => {
   try {
     const { id } = req.body;
