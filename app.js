@@ -924,3 +924,35 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
+app.post("/suggest-reply", async (req, res) => {
+  try {
+
+    const { message_type, reply_effort, message_text } = req.body;
+
+    let suggestion = "";
+
+    if (message_type === "closing") {
+      suggestion = "❤️";
+    }
+
+    else if (message_type === "lead") {
+      suggestion = "היי 🙌 בשמחה. אשמח לשלוח לך את כל הפרטים. מה הכי מעניין אותך כרגע?";
+    }
+
+    else if (message_type === "existing_customer" && reply_effort === "short") {
+      suggestion = "בטח, אני כאן. מה בדיוק אתה צריך?";
+    }
+
+    else {
+      suggestion = "היי, אני כאן לעזור. תוכל לכתוב לי קצת יותר פרטים?";
+    }
+
+    res.json({
+      suggested_reply: suggestion
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to generate reply suggestion" });
+  }
+});
