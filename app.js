@@ -563,6 +563,87 @@ app.get("/daily-brief", async (req, res) => {
     });
   }
 });
+app.get("/dashboard-summary", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, source, last_message, last_message_time, followup_needed, alert_sent
+      FROM leads
+      ORDER BY last_message_time DESC
+    `);
+
+    const now = Date.now();
+
+    const highKeywords = [
+      "price","pricing","how much","membership","trial","start","join","schedule",
+      "available","כמה עולה","מחיר","עלות","מנוי","ניסיון","להתחיל","להצטרף"
+    ];
+
+    const leads = result.rows.map((lead) => {
+      const msg = (lead.last_message || "").toLowerCase();
+
+      const waiting_minutes = Math.floor(
+        (now - new Date(lead.last_message_time).getTime()) / 60000
+      );
+
+      const is_hot = highKeywords.some((k) => msg.includes(k));
+      const is_ignored =
+        lead.followup_needed === true &&
+        waiting_minutes >= 720;
+      const is_followup =
+        lead.followup_needed === true &&
+        waiting_minutes >= 1440;
+
+      let attention_level = "waiting";
+      if (waiting_minutes >= 1440) attention_level = "lost";
+      else if (waiting_minutes >= 720) attention_level = "urgent";
+      else if (waiting_minutes >= 120) attention_level = "at_risk";
+
+      return {
+        ...lead,
+        waiting_minutes,
+        is_hot,
+        is_ignored,
+        is_followup,
+        attention_level
+      };
+    });
+
+    const hot_leads = leads.filter((lead) => lead.is_hot).length;
+    const ignored_leads = leads.filter((lead) => lead.is_ignored).length;
+    const followups = leads.filter((lead) => lead.is_followup).length;
+
+    const potential_sales_conversations =
+      hot_leads + ignored_leads + followups;
+
+    const alerts = leads.filter(
+      (lead) =>
+        lead.alert_sent === false &&
+        (lead.is_hot || lead.is_ignored)
+    );
+
+    const attention = leads.filter(
+      (lead) => lead.followup_needed === true
+    );
+
+    res.json({
+      daily_brief: {
+        hot_leads,
+        ignored_leads,
+        followups,
+        potential_sales_conversations
+      },
+      alerts,
+      attention
+    });
+
+  } catch (error) {
+    console.error("Dashboard summary error:", error);
+
+    res.status(500).json({
+      error: "Failed to fetch dashboard summary"
+    });
+  }
+});
 app.get("/push-dispatch", async (req, res) => {
   try {
 
