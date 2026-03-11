@@ -833,6 +833,47 @@ app.post("/resolve", async (req, res) => {
     return res.status(500).json({ error: "Failed to resolve lead" });
   }
 });
+app.get("/priority-inbox", async (req, res) => {
+  try {
+
+    const result = await pool.query(`
+      SELECT lead_id, message_text, message_type, reply_effort, created_at
+      FROM messages
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
+
+    const hot_leads = [];
+    const needs_attention = [];
+    const quick_replies = [];
+
+    result.rows.forEach(msg => {
+
+      if (msg.message_type === "lead") {
+        hot_leads.push(msg);
+      }
+
+      else if (msg.reply_effort === "short") {
+        needs_attention.push(msg);
+      }
+
+      else if (msg.message_type === "closing") {
+        quick_replies.push(msg);
+      }
+
+    });
+
+    res.json({
+      hot_leads,
+      needs_attention,
+      quick_replies
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to build priority inbox" });
+  }
+});
 app.get("/resolve-test", async (req, res) => {
   try {
     const id = req.query.id;
