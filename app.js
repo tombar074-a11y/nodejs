@@ -847,6 +847,16 @@ if (req.body.Participant) {
   console.log("Ignoring group message from:", req.body.Participant);
   return res.sendStatus(200);
 }
+    // Ignore hidden numbers
+const hiddenCheck = await pool.query(
+  "SELECT 1 FROM hidden_numbers WHERE phone = $1",
+  [phone]
+);
+
+if (hiddenCheck.rowCount > 0) {
+  console.log("Ignoring hidden number:", phone);
+  return res.sendStatus(200);
+}
  const result = await ingestWhatsAppMessage({
       phone,
       message,
