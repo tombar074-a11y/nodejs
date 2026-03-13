@@ -842,7 +842,11 @@ app.post("/whatsapp", async (req, res) => {
     if (!phone || !message) {
       return res.status(400).json({ error: "Missing phone or message" });
     }
-
+// Ignore WhatsApp groups
+if (req.body.Participant) {
+  console.log("Ignoring group message from:", req.body.Participant);
+  return res.sendStatus(200);
+}
  const result = await ingestWhatsAppMessage({
       phone,
       message,
