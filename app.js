@@ -779,12 +779,19 @@ app.get("/priority-inbox", async (req, res) => {
   try {
 
     const result = await pool.query(`
-      SELECT lead_id, message_text, message_type, reply_effort, created_at
-      FROM messages
-      ORDER BY created_at DESC
-      LIMIT 50
-    `);
-
+  SELECT
+    m.lead_id,
+    m.message_text,
+    m.message_type,
+    m.reply_effort,
+    m.created_at
+  FROM messages m
+  JOIN leads l ON l.id = m.lead_id
+  WHERE m.direction = 'inbound'
+    AND l.followup_needed = true
+  ORDER BY m.created_at DESC
+  LIMIT 50
+`);
     const hot_leads = [];
     const needs_attention = [];
     const quick_replies = [];
