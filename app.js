@@ -808,8 +808,6 @@ result.rows.forEach((msg) => {
   }
 });
 
-    });
-
     res.json({
       hot_leads,
       needs_attention,
