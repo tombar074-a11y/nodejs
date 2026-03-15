@@ -791,23 +791,22 @@ app.get("/priority-inbox", async (req, res) => {
     AND l.followup_needed = true
   ORDER BY m.lead_id, m.created_at DESC
 `);
-    const hot_leads = [];
-    const needs_attention = [];
-    const quick_replies = [];
+   const hot_leads = [];
+const needs_attention = [];
+const quick_replies = [];
 
-    result.rows.forEach(msg => {
-
-      if (msg.message_type === "lead") {
-        hot_leads.push(msg);
-      }
-
-      else if (msg.reply_effort === "short") {
-        needs_attention.push(msg);
-      }
-
-      else if (msg.message_type === "closing") {
-        quick_replies.push(msg);
-      }
+result.rows.forEach((msg) => {
+  if (msg.message_type === "lead") {
+    hot_leads.push(msg);
+  } else if (msg.message_type === "closing") {
+    quick_replies.push(msg);
+  } else if (
+    msg.message_type === "existing_customer" ||
+    msg.reply_effort === "short"
+  ) {
+    needs_attention.push(msg);
+  }
+});
 
     });
 
