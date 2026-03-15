@@ -779,7 +779,7 @@ app.get("/priority-inbox", async (req, res) => {
   try {
 
     const result = await pool.query(`
-  SELECT
+  SELECT DISTINCT ON (m.lead_id)
     m.lead_id,
     m.message_text,
     m.message_type,
@@ -789,8 +789,7 @@ app.get("/priority-inbox", async (req, res) => {
   JOIN leads l ON l.id = m.lead_id
   WHERE m.direction = 'inbound'
     AND l.followup_needed = true
-  ORDER BY m.created_at DESC
-  LIMIT 50
+  ORDER BY m.lead_id, m.created_at DESC
 `);
     const hot_leads = [];
     const needs_attention = [];
