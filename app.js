@@ -969,6 +969,31 @@ app.post("/suggest-reply", async (req, res) => {
     res.status(500).json({ error: "Failed to generate reply suggestion" });
   }
 });
+app.get("/conversation-preview", async (req, res) => {
+  try {
+    const id = req.query.id;
+
+    if (!id) {
+      return res.status(400).json({ error: "Missing id" });
+    }
+
+    const result = await pool.query(`
+      SELECT lead_id, direction, message_text, created_at
+      FROM messages
+      WHERE lead_id = $1
+      ORDER BY created_at DESC
+      LIMIT 5
+    `, [id]);
+
+    return res.json({
+      lead_id: id,
+      messages: result.rows.reverse()
+    });
+  } catch (error) {
+    console.error("Conversation preview error:", error);
+    return res.status(500).json({ error: "Failed to load conversation preview" });
+  }
+});
 app.get("/daily-brief", async (req, res) => {
   try {
 
