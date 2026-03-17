@@ -55,38 +55,93 @@ const leads = new Map();
 function classifyMessage(message, waiting_minutes = 0) {
   const msg = (message || "").toLowerCase().trim();
 
-  const leadKeywords = [
-  "price", "pricing", "how much", "membership", "trial", "start", "join",
-  "available", "schedule",
-  "כמה", "כמה זה", "כמה עולה", "מחיר", "עלות", "מנוי", "ניסיון",
-  "להתחיל", "להצטרף", "פרטים", "זמין"
-];
-
   const closingKeywords = [
-    "thanks", "thank you", "perfect", "great", "awesome", "amazing",
-    "תודה", "תודה רבה", "מושלם", "מעולה", "אלוף", "מלך", "🙏", "👍", "❤️", "❤"
+    "תודה",
+    "תודה רבה",
+    "תודהה",
+    "❤️",
+    "❤",
+    "🙏",
+    "היה מדהים",
+    "היה מושלם",
+    "מדהים",
+    "מושלם",
+    "איזה כיף",
+    "אלופה",
+    "וואו",
+    "מעולה",
+    "כיף",
+    "אהבתי",
+    "אין עלייך",
+    "תודה לך",
+    "תודה רבה לך",
+    "thanks",
+    "thank you",
+    "amazing",
+    "perfect",
+    "great",
+    "awesome"
+  ];
+
+  const leadKeywords = [
+    "כמה עולה",
+    "מחיר",
+    "עלות",
+    "כמה זה",
+    "יש מקום",
+    "יש תור",
+    "אפשר לקבוע",
+    "איך קובעים",
+    "פרטים",
+    "איפה אתם",
+    "איפה את",
+    "זמינות",
+    "מתי אפשר",
+    "price",
+    "cost",
+    "how much",
+    "availability",
+    "book",
+    "schedule"
   ];
 
   const shortReplyKeywords = [
-    "מתי", "איפה", "אפשר", "שלחת?", "קיבלת?", "מחר", "היום",
-    "when", "where", "can you", "did you send", "got it"
+    "אני בדרך",
+    "אפשר להזיז",
+    "אני מאחר",
+    "אני מאחרת",
+    "מאשרת",
+    "מאשר",
+    "שלחי כתובת",
+    "תשלחי כתובת",
+    "שלח כתובת",
+    "אני מגיע",
+    "אני מגיעה",
+    "can we move",
+    "running late",
+    "send address",
+    "confirmed"
   ];
 
-  if (closingKeywords.some((k) => msg.includes(k))) {
-    return {
-      message_type: "closing",
-      reply_effort: "quick"
-    };
-  }
+  const isLead = leadKeywords.some(k => msg.includes(k));
+  const isClosing = closingKeywords.some(k => msg.includes(k));
+  const isQuestion = msg.includes("?");
 
-  if (leadKeywords.some((k) => msg.includes(k))) {
+  if (isLead) {
     return {
       message_type: "lead",
       reply_effort: "full"
     };
   }
 
-  if (shortReplyKeywords.some((k) => msg.includes(k))) {
+  if (isClosing && !isQuestion) {
+    return {
+      message_type: "closing",
+      reply_effort: "short"
+    };
+  }
+
+  if (shortReplyKeywords.some(k => msg.includes(k))) {
     return {
       message_type: "existing_customer",
       reply_effort: "short"
