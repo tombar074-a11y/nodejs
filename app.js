@@ -957,31 +957,77 @@ app.listen(PORT, () => {
 });
 app.post("/suggest-reply", async (req, res) => {
   try {
- 
-    const { message_type, reply_effort, message_text } = req.body;
+    const { lead_id, message_type, reply_effort, message_text } = req.body;
 
     let suggestion = "";
 
+    let profile = {};
+    if (lead_id) {
+      const leadResult = await pool.query(
+        `
+        SELECT business_id
+        FROM leads
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [lead_id]
+      );
+
+      if (leadResult.rows.length > 0) {
+        const businessId = leadResult.rows[0].business_id;
+
+        if (businessId) {
+          const businessResult = await pool.query(
+            `
+            SELECT *
+            FROM business_profiles
+            WHERE id = $1
+            LIMIT 1
+            `,
+            [businessId]
+          );
+
+          profile = businessResult.rows[0] || {};
+        }
+      }
+    }
+
+    const address = profile.address || "";
+    const pricing = profile.pricing_notes || "";
+    const services = profile.services || "";
+    const businessName = profile.business_name || "";
+
+    const lower = (message_text || "").toLowerCase();
+
     if (message_type === "closing") {
       suggestion = "❤️";
-    }
-
-    else if (message_type === "lead") {
-      suggestion = "היי 🙌 בשמחה. אשמח לשלוח לך את כל הפרטים. מה הכי מעניין אותך כרגע?";
-    }
-
-    else if (message_type === "existing_customer" && reply_effort === "short") {
+    } else if (message_type === "lead") {
+      if (lower.includes("כמה") || lower.includes("מחיר") || lower.includes("price") || lower.includes("cost")) {
+        suggestion = pricing
+          ? `היי 🙌 בשמחה. ${pricing}`
+          : "היי 🙌 בשמחה. אשמח לשלוח לך את כל הפרטים.";
+      } else if (lower.includes("איפה") || lower.includes("כתובת") || lower.includes("where")) {
+        suggestion = address
+          ? `היי 🙌 אנחנו נמצאים ב${address}`
+          : "היי 🙌 בשמחה, אשלח לך את המיקום.";
+      } else if (lower.includes("מה אתם מציעים") || lower.includes("שירות") || lower.includes("services")) {
+        suggestion = services
+          ? `היי 🙌 אנחנו מציעים: ${services}`
+          : "היי 🙌 בשמחה, אשמח לשלוח לך את כל הפרטים.";
+      } else {
+        suggestion = businessName
+          ? `היי 🙌 תודה שפנית ל${businessName}. אשמח לשלוח לך את כל הפרטים. מה הכי מעניין אותך כרגע?`
+          : "היי 🙌 בשמחה. אשמח לשלוח לך את כל הפרטים. מה הכי מעניין אותך כרגע?";
+      }
+    } else if (message_type === "existing_customer" && reply_effort === "short") {
       suggestion = "בטח, אני כאן. מה בדיוק אתה צריך?";
-    }
-
-    else {
+    } else {
       suggestion = "היי, אני כאן לעזור. תוכל לכתוב לי קצת יותר פרטים?";
     }
 
     res.json({
       suggested_reply: suggestion
     });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to generate reply suggestion" });
