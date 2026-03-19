@@ -1081,33 +1081,39 @@ app.post("/suggest-reply", async (req, res) => {
     const businessName = profile.business_name || "";
 
     const lower = (message_text || "").toLowerCase();
-
-    if (message_type === "closing") {
-      suggestion = "❤️";
-    } else if (message_type === "lead") {
-      if (lower.includes("כמה") || lower.includes("מחיר") || lower.includes("price") || lower.includes("cost")) {
-        suggestion = pricing
-          ? `היי 🙌 בשמחה. ${pricing}`
-          : "היי 🙌 בשמחה. אשמח לשלוח לך את כל הפרטים.";
-      } else if (lower.includes("איפה") || lower.includes("כתובת") || lower.includes("where")) {
-        suggestion = address
-          ? `היי 🙌 אנחנו נמצאים ב${address}`
-          : "היי 🙌 בשמחה, אשלח לך את המיקום.";
-      } else if (lower.includes("מה אתם מציעים") || lower.includes("שירות") || lower.includes("services")) {
-        suggestion = services
-          ? `היי 🙌 אנחנו מציעים: ${services}`
-          : "היי 🙌 בשמחה, אשמח לשלוח לך את כל הפרטים.";
-      } else {
-        suggestion = businessName
-          ? `היי 🙌 תודה שפנית ל${businessName}. אשמח לשלוח לך את כל הפרטים. מה הכי מעניין אותך כרגע?`
-          : "היי 🙌 בשמחה. אשמח לשלוח לך את כל הפרטים. מה הכי מעניין אותך כרגע?";
-      }
-    } else if (message_type === "existing_customer" && reply_effort === "short") {
-      suggestion = "בטח, אני כאן. מה בדיוק אתה צריך?";
-    } else {
-      suggestion = "היי, אני כאן לעזור. תוכל לכתוב לי קצת יותר פרטים?";
-    }
-
+if (lower.includes("איפה") || lower.includes("כתובת") || lower.includes("where")) {
+  suggestion = address
+    ? `היי 🙌 אנחנו נמצאים ב${address}`
+    : "היי 🙌 בשמחה, אשלח לך את המיקום.";
+} else if (
+  lower.includes("כמה") ||
+  lower.includes("מחיר") ||
+  lower.includes("עלות") ||
+  lower.includes("price") ||
+  lower.includes("cost")
+) {
+  suggestion = pricing
+    ? `היי 🙌 ${pricing}`
+    : "היי 🙌 בשמחה, אשמח לשלוח לך את כל פרטי המחיר.";
+} else if (
+  lower.includes("שירות") ||
+  lower.includes("מה אתם מציעים") ||
+  lower.includes("services")
+) {
+  suggestion = services
+    ? `היי 🙌 אנחנו מציעים: ${services}`
+    : "היי 🙌 בשמחה, אשמח לשלוח לך את כל הפרטים.";
+} else if (message_type === "closing") {
+  suggestion = "❤️";
+} else if (message_type === "lead") {
+  suggestion = businessName
+    ? `היי 🙌 תודה שפנית ל${businessName}. אשמח לשלוח לך את כל הפרטים. מה הכי מעניין אותך כרגע?`
+    : "היי 🙌 בשמחה. אשמח לשלוח לך את כל הפרטים. מה הכי מעניין אותך כרגע?";
+} else if (message_type === "existing_customer" && reply_effort === "short") {
+  suggestion = "בטח, אני כאן. מה בדיוק אתה צריך?";
+} else {
+  suggestion = "היי, אני כאן לעזור. תוכל לכתוב לי קצת יותר פרטים?";
+}
     res.json({
       suggested_reply: suggestion
     });
