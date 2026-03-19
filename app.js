@@ -892,6 +892,89 @@ result.rows.forEach((msg) => {
     res.status(500).json({ error: "Failed to build priority inbox" });
   }
 });
+app.get("/business-profile", async (req, res) => {
+  try {
+    const id = req.query.id || 1;
+
+    const result = await pool.query(
+      `
+      SELECT *
+      FROM business_profiles
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Business profile not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Get business profile error:", error);
+    res.status(500).json({ error: "Failed to load business profile" });
+  }
+});
+
+app.post("/business-profile", async (req, res) => {
+  try {
+    const {
+      id = 1,
+      business_name,
+      business_type,
+      address,
+      phone,
+      services,
+      pricing_notes,
+      tone
+    } = req.body;
+
+    const result = await pool.query(
+      `
+      INSERT INTO business_profiles (
+        id,
+        business_name,
+        business_type,
+        address,
+        phone,
+        services,
+        pricing_notes,
+        tone
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (id)
+      DO UPDATE SET
+        business_name = EXCLUDED.business_name,
+        business_type = EXCLUDED.business_type,
+        address = EXCLUDED.address,
+        phone = EXCLUDED.phone,
+        services = EXCLUDED.services,
+        pricing_notes = EXCLUDED.pricing_notes,
+        tone = EXCLUDED.tone
+      RETURNING *
+      `,
+      [
+        id,
+        business_name || "",
+        business_type || "",
+        address || "",
+        phone || "",
+        services || "",
+        pricing_notes || "",
+        tone || "friendly"
+      ]
+    );
+
+    res.json({
+      success: true,
+      profile: result.rows[0]
+    });
+  } catch (error) {
+    console.error("Save business profile error:", error);
+    res.status(500).json({ error: "Failed to save business profile" });
+  }
+});
 app.get("/resolve-test", async (req, res) => {
   try {
     const id = req.query.id;
